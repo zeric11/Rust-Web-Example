@@ -11,6 +11,19 @@ pub struct Question {
     pub tags: Option<Vec<String>>,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct NewQuestion {
+    pub title: String,
+    pub content: String,
+    pub tags: Option<Vec<String>>,
+}
+
+impl IntoResponse for &Question {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(&self)).into_response()
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AnswerId(pub String);
 
@@ -21,23 +34,8 @@ pub struct Answer {
     pub question_id: QuestionId,
 }
 
-/// A database manager of questions and answers
-#[derive(Debug, Clone)]
-pub struct QABase {
-    pub questions: Arc<RwLock<HashMap<QuestionId, Question>>>,
-    pub answers: Arc<RwLock<HashMap<AnswerId, Answer>>>,
-}
-
-impl QABase {
-    pub fn new() -> Self {
-        QABase {
-            questions: Arc::new(RwLock::new(Self::init())),
-            answers: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub fn init() -> HashMap<QuestionId, Question> {
-        let file = include_str!("../questions.json");
-        serde_json::from_str(file).expect("can't read questions.json")
-    }
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct NewAnswer {
+    pub content: String,
+    pub question_id: QuestionId,
 }

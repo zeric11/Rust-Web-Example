@@ -1,10 +1,13 @@
 mod api;
+mod qabase;
 mod qna;
 
 use api::*;
+use qabase::*;
 use qna::*;
 
 use std::collections::{HashMap, HashSet};
+use std::error::Error;
 use std::fs::File;
 use std::io::{ErrorKind, Seek, Write};
 use std::net::SocketAddr;
@@ -18,8 +21,13 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
-use axum_macros::debug_handler;
-extern crate fastrand;
+
+use sqlx::{
+    self,
+    postgres::{PgConnection, PgPool, PgPoolOptions, PgRow, Postgres},
+    Pool, Row,
+};
+
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 extern crate serde_json;
 extern crate thiserror;
@@ -38,8 +46,14 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
-    let qabase = QABase::new();
-    let qabase = Arc::new(RwLock::new(qabase));
+    let qabase = QABase::new("postgres://localhost:5432/rustwebdev").await;
+    sqlx::migrate!()
+        .run(&qabase.clone().connection)
+        .await
+        .expect("Cannot migrate DB");
+
+    let appstate = AppState::new(qabase);
+    let state = Arc::new(RwLock::new(appstate));
 
     let app = Router::new()
         .route("/api-docs", get(openapi))
@@ -48,7 +62,7 @@ async fn main() {
         .route("/update", put(update_question))
         .route("/delete", delete(delete_question))
         .route("/add", post(add_answer))
-        .with_state(qabase);
+        .with_state(state);
 
     let ip = SocketAddr::new([127, 0, 0, 1].into(), 3000);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();

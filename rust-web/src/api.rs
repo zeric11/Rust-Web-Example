@@ -1,5 +1,10 @@
 use crate::*;
 
+use axum::response::{IntoResponse, Redirect, Response};
+
+use qabase::*;
+use qna::*;
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -38,18 +43,11 @@ pub async fn openapi() -> Json<utoipa::openapi::OpenApi> {
         (status = 200, description = "List questions", body = [Question])
     )
 )]
-#[debug_handler]
-pub async fn get_questions(State(qabase): State<Arc<RwLock<QABase>>>) -> Response {
-    let unpacked_qabase = qabase.read().await;
-    let questions: Vec<Question> = unpacked_qabase
-        .questions
-        .read()
-        .await
-        .values()
-        .cloned()
-        .collect();
-
-    (StatusCode::OK, Json(&questions)).into_response()
+pub async fn get_questions(State(appstate): HandlerAppState) -> Response {
+    match appstate.read().await.qabase.get_questions().await {
+        Ok(questions) => Json(questions).into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
+    }
 }
 
 /// Post question JSON
@@ -61,17 +59,13 @@ pub async fn get_questions(State(qabase): State<Arc<RwLock<QABase>>>) -> Respons
     )
 )]
 pub async fn add_question(
-    State(qabase): State<Arc<RwLock<QABase>>>,
-    Json(question): Json<Question>,
+    State(appstate): State<Arc<RwLock<AppState>>>,
+    Json(question): Json<NewQuestion>,
 ) -> Response {
-    let unpacked_qabase = qabase.read().await;
-    unpacked_qabase
-        .questions
-        .write()
-        .await
-        .insert(question.id.clone(), question);
-
-    StatusCode::OK.into_response()
+    match appstate.read().await.qabase.add_question(question).await {
+        Ok(_) => StatusCode::CREATED.into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
+    }
 }
 
 /// Put new content into question by id
@@ -83,21 +77,20 @@ pub async fn add_question(
     )
 )]
 pub async fn update_question(
-    State(qabase): State<Arc<RwLock<QABase>>>,
+    State(appstate): State<Arc<RwLock<AppState>>>,
+    Path(question_id): Path<String>,
     Json(question): Json<Question>,
 ) -> Response {
-    let unpacked_qabase = qabase.read().await;
-    match unpacked_qabase
-        .questions
-        .write()
+    match appstate
+        .read()
         .await
-        .get_mut(&question.id)
+        .qabase
+        .update_question(question, &question_id)
+        .await
     {
-        Some(q) => *q = question.clone(),
-        None => return StatusCode::BAD_REQUEST.into_response(),
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
     }
-
-    StatusCode::OK.into_response()
 }
 
 /// Delete question by id
@@ -108,21 +101,19 @@ pub async fn update_question(
         (status = 200, description = "Delete question", body = [Question])
     )
 )]
-#[debug_handler]
 pub async fn delete_question(
-    State(qabase): State<Arc<RwLock<QABase>>>,
-    Path(id): Path<String>,
+    State(appstate): State<Arc<RwLock<AppState>>>,
+    Path(question_id): Path<String>,
 ) -> Response {
-    match qabase
+    match appstate
         .read()
         .await
-        .questions
-        .write()
+        .qabase
+        .delete_question(&question_id)
         .await
-        .remove(&QuestionId(id))
     {
-        Some(_) => return StatusCode::OK.into_response(),
-        None => return StatusCode::BAD_REQUEST.into_response(),
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
     }
 }
 
@@ -135,15 +126,11 @@ pub async fn delete_question(
     )
 )]
 pub async fn add_answer(
-    State(qabase): State<Arc<RwLock<QABase>>>,
-    Json(answer): Json<Answer>,
+    State(appstate): State<Arc<RwLock<AppState>>>,
+    Json(answer): Json<NewAnswer>,
 ) -> Response {
-    let unpacked_qabase = qabase.read().await;
-    unpacked_qabase
-        .answers
-        .write()
-        .await
-        .insert(answer.id.clone(), answer);
-
-    StatusCode::OK.into_response()
+    match appstate.read().await.qabase.add_answer(answer).await {
+        Ok(_) => StatusCode::CREATED.into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
+    }
 }
