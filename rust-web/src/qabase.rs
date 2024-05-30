@@ -13,6 +13,7 @@ pub struct QABase {
 }
 
 impl QABase {
+    /// Creates a new QABase connected to the supplied database URL
     pub async fn new(db_url: &str) -> Self {
         let db_pool = match PgPoolOptions::new()
             .max_connections(5)
@@ -28,6 +29,7 @@ impl QABase {
         }
     }
 
+    /// Retrieves questions stored in the database
     pub async fn get_questions(&self) -> Result<Vec<Question>, DBError> {
         match sqlx::query("SELECT * from questions LIMIT $1 OFFSET $2")
             .map(|row: PgRow| Question {
@@ -47,6 +49,7 @@ impl QABase {
         }
     }
 
+    /// Adds a question to the database
     pub async fn add_question(&self, new_question: NewQuestion) -> Result<Question, DBError> {
         match sqlx::query(
             "INSERT INTO questions (title, content, tags)
@@ -73,6 +76,7 @@ impl QABase {
         }
     }
 
+    /// Updates a question in the database according to the supplied question ID
     pub async fn update_question(
         &self,
         question: Question,
@@ -104,6 +108,7 @@ impl QABase {
         }
     }
 
+    /// Deletes a question in the database according to the supplied question ID
     pub async fn delete_question(&self, question_id: &str) -> Result<bool, DBError> {
         match sqlx::query("DELETE FROM questions WHERE id = $1")
             .bind(question_id)
@@ -118,6 +123,7 @@ impl QABase {
         }
     }
 
+    /// Adds an answer to the database
     pub async fn add_answer(&self, new_answer: NewAnswer) -> Result<Answer, DBError> {
         match sqlx::query("INSERT INTO answers (content, question_id) VALUES ($1, $2)")
             .bind(new_answer.content)

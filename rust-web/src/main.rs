@@ -46,7 +46,16 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() {
-    let qabase = QABase::new("postgres://localhost:5432/rustwebdev").await;
+    let user = "rustweb";
+    let password = "postgres";
+    let host = "localhost";
+    let url = format!(
+        "postgres://{}:{}@{}:5432/rustwebdev",
+        user.trim(),
+        password.trim(),
+        host.trim(),
+    );
+    let qabase = QABase::new(&url).await;
     sqlx::migrate!()
         .run(&qabase.clone().connection)
         .await
