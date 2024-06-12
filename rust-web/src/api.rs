@@ -18,7 +18,7 @@ use qna::*;
         schemas(Question)
     ),
     tags(
-        (name = "knock-knock", description = "Knock-Knock Joke API")
+        (name = "rust-web", description = "QnA API")
     )
 )]
 pub struct ApiDoc;
