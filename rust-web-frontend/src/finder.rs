@@ -13,14 +13,12 @@ pub fn Finder(props: &FinderProps) -> Html {
         Callback::from(move |e: InputEvent| {
             let input: HtmlTextAreaElement = e.target_unchecked_into();
             let value = input.value();
-            // log!(format!("key change: {:?}", value));
             let value = value.trim();
             let value = if value.is_empty() {
                 None
             } else {
                 Some(value.to_string())
             };
-            // log!(format!("key change final: {:?}", value));
             key.set(value);
         })
     };

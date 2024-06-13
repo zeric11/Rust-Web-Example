@@ -31,7 +31,7 @@ impl QABase {
 
     /// Retrieves questions stored in the database
     pub async fn get_questions(&self) -> Result<Vec<Question>, DBError> {
-        match sqlx::query("SELECT * from questions LIMIT $1 OFFSET $2")
+        match sqlx::query("SELECT * from questions;")
             .map(|row: PgRow| Question {
                 id: QuestionId(row.get("id")),
                 title: row.get("title"),
@@ -42,6 +42,27 @@ impl QABase {
             .await
         {
             Ok(questions) => Ok(questions),
+            Err(e) => {
+                tracing::event!(tracing::Level::ERROR, "{:?}", e);
+                Err(DBError::DatabaseQueryError)
+            }
+        }
+    }
+
+    /// Retrieves a question stored in the database by ID
+    pub async fn get_question(&self, question_id: &str) -> Result<Question, DBError> {
+        let query = format!("SELECT * FROM questions WHERE id = {};", question_id);
+        match sqlx::query(&query)
+            .map(|row: PgRow| Question {
+                id: QuestionId(row.get("id")),
+                title: row.get("title"),
+                content: row.get("content"),
+                tags: row.get("tags"),
+            })
+            .fetch_one(&self.connection)
+            .await
+        {
+            Ok(question) => Ok(question),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
                 Err(DBError::DatabaseQueryError)

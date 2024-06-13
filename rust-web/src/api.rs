@@ -1,6 +1,6 @@
 use crate::*;
 
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 
 use qabase::*;
 use qna::*;
@@ -46,6 +46,30 @@ pub async fn openapi() -> Json<utoipa::openapi::OpenApi> {
 pub async fn get_questions(State(appstate): HandlerAppState) -> Response {
     match appstate.read().await.qabase.get_questions().await {
         Ok(questions) => Json(questions).into_response(),
+        Err(e) => StatusCode::BAD_REQUEST.into_response(),
+    }
+}
+
+/// Return JSON of a question by ID
+#[utoipa::path(
+    get,
+    path = "/api/v1/questions/{}",
+    responses(
+        (status = 200, description = "List questions", body = [Question])
+    )
+)]
+pub async fn get_question(
+    State(appstate): HandlerAppState,
+    Path(question_id): Path<String>,
+) -> Response {
+    match appstate
+        .read()
+        .await
+        .qabase
+        .get_question(&question_id)
+        .await
+    {
+        Ok(question) => Json(question).into_response(),
         Err(e) => StatusCode::BAD_REQUEST.into_response(),
     }
 }

@@ -1,26 +1,21 @@
-mod cookie;
 mod finder;
 mod qna;
 
-use cookie::*;
 use finder::*;
 use qna::*;
 
 use std::collections::HashSet;
 
 extern crate serde;
-// use gloo_console::log;
 use gloo_net::http;
 extern crate wasm_bindgen_futures;
-use wasm_cookies as cookies;
 use web_sys::HtmlTextAreaElement;
 use yew::prelude::*;
 
 pub type QAResult = Result<QAStruct, gloo_net::Error>;
 
 struct App {
-    cookie: String,
-    questions: QAResult,
+    question: QAResult,
 }
 
 pub enum Msg {
@@ -29,9 +24,10 @@ pub enum Msg {
 }
 
 impl App {
-    fn refresh_questions(ctx: &Context<Self>) {
-        let got_questions = QAStruct::get_questions();
-        ctx.link().send_future(got_questions);
+    fn refresh_questions(ctx: &Context<Self>, question_id: Option<String>) {
+        // All requests from the back-end are returning as "Failed to fetch" errors.
+        let new_question = QAStruct::get_question(question_id);
+        ctx.link().send_future(new_question);
     }
 }
 
@@ -40,47 +36,39 @@ impl Component for App {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let cookie = acquire_cookie();
-        App::refresh_questions(ctx);
-        let questions = Err(gloo_net::Error::GlooError("Loading QnA…".to_string()));
-        Self { cookie, questions }
+        App::refresh_questions(ctx, None);
+        let question = Err(gloo_net::Error::GlooError("Loading QnA…".to_string()));
+        Self { question }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::GotQA(questions) => {
-                self.questions = questions;
+            Msg::GotQA(question) => {
+                self.question = question;
                 true
             }
-            Msg::GetQA(_) => {
-                App::refresh_questions(ctx);
+            Msg::GetQA(question_id) => {
+                App::refresh_questions(ctx, question_id);
                 false
             }
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let cookie = &self.cookie;
-        let questions = &self.questions;
+        let question = &self.question;
         html! {
-        <>
-            <h1>{ "QnA" }</h1>
-            if false {
-                {render_cookie(cookie)}
-            }
-            if let Ok(ref questions) = questions {
-                <Question questions={questions.clone()}/>
-            }
-            if let Err(ref error) = questions {
-                <div>
-                    <span class="error">{format!("Server Error: {error}")}</span>
-                </div>
-            }
-            <div>
-                <button onclick={ctx.link().callback(|_| Msg::GetQA(None))}>{"Tell me another!"}</button>
-            </div>
-            <Finder on_find={ctx.link().callback(Msg::GetQA)}/>
-        </>
+            <>
+                <h1>{ "QnA" }</h1>
+                if let Ok(ref question) = question {
+                    <Question question={question.clone()}/>
+                }
+                else if let Err(ref error) = question {
+                    <div>
+                        <span class="error">{format!("Server Error: {error}")}</span>
+                    </div>
+                }
+                <Finder on_find={ctx.link().callback(Msg::GetQA)}/>
+            </>
         }
     }
 }

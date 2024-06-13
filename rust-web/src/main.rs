@@ -6,47 +6,33 @@ use api::*;
 use qabase::*;
 use qna::*;
 
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
-use std::fs::File;
-use std::io::{ErrorKind, Seek, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use askama::Template;
 use axum::{
-    extract::{Path, Query, State},
-    http::{Method, StatusCode},
-    response::{IntoResponse, Redirect, Response, Result},
+    extract::{Path, State},
+    http::StatusCode,
+    response::{IntoResponse, Response, Result},
     routing::{delete, get, post, put},
     Json, Router,
 };
 
 use sqlx::{
     self,
-    postgres::{PgConnection, PgPool, PgPoolOptions, PgRow, Postgres},
-    Pool, Row,
+    postgres::{PgPool, PgPoolOptions, PgRow},
+    Row,
 };
 
-use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 extern crate serde_json;
 extern crate thiserror;
 use tokio::{self, sync::RwLock};
-use tower_http::{services, trace};
 extern crate tracing;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utoipa::{
-    openapi::schema::{ObjectBuilder, Schema, SchemaType},
-    openapi::RefOr,
-    OpenApi, ToSchema,
-};
-use utoipa_rapidoc::RapiDoc;
-use utoipa_redoc::{Redoc, Servable};
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa::{OpenApi, ToSchema};
 
 #[tokio::main]
 async fn main() {
-    let user = "rustweb";
+    let user = "postgres";
     let password = "postgres";
     let host = "localhost";
     let url = format!(
@@ -67,6 +53,7 @@ async fn main() {
     let app = Router::new()
         .route("/api-docs", get(openapi))
         .route("/questions", get(get_questions))
+        .route("/questions/:id", get(get_question))
         .route("/question", post(add_question))
         .route("/update", put(update_question))
         .route("/delete", delete(delete_question))
